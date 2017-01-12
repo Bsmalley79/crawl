@@ -106,10 +106,7 @@ void set_cursor_enabled(bool enabled)
 
 bool is_cursor_enabled()
 {
-    if (TextRegion::cursor_flag)
-        return true;
-
-    return false;
+    return TextRegion::cursor_flag;
 }
 
 bool is_smart_cursor_enabled()
