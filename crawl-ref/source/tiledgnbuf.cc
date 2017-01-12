@@ -292,6 +292,8 @@ void DungeonCellBuffer::pack_background(int x, int y, const packed_cell &cell)
                 m_buf_feat.add(TILE_QUAD_GLOW, x, y);
             if (cell.disjunct)
                 m_buf_feat.add(TILE_DISJUNCT + cell.disjunct - 1, x, y);
+            if (cell.awakened_forest)
+                m_buf_icons.add(TILEI_BERSERK, x, y);
 
             if (cell.fg)
             {
@@ -474,6 +476,11 @@ void DungeonCellBuffer::pack_foreground(int x, int y, const packed_cell &cell)
     if (fg & TILE_FLAG_BOUND_SOUL)
     {
         m_buf_icons.add(TILEI_BOUND_SOUL, x, y, -status_shift, 0);
+        status_shift += 6;
+    }
+    if (fg & TILE_FLAG_INFESTED)
+    {
+        m_buf_icons.add(TILEI_INFESTED, x, y, -status_shift, 0);
         status_shift += 6;
     }
     if (fg & TILE_FLAG_RECALL)

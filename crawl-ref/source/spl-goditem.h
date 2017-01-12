@@ -60,7 +60,7 @@ bool cast_imprison(int pow, monster* mons, int source);
 
 bool cast_smiting(int pow, monster* mons);
 
-int is_pacifiable(const monster* mon);
+string unpacifiable_reason(const monster &mon);
 
 struct bolt;
 
@@ -79,5 +79,7 @@ void setup_cleansing_flame_beam(bolt &beam, int pow, int caster,
                                 coord_def where, actor *attacker = nullptr);
 void cleansing_flame(int pow, int caster, coord_def where,
                      actor *attacker = nullptr);
+
+spret_type cast_random_effects(int pow, bolt& beam, bool fail);
 
 #endif

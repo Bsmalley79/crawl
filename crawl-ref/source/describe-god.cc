@@ -16,10 +16,10 @@
 #include "describe.h"
 #include "english.h"
 #include "food.h"
-#include "godabil.h"
-#include "godconduct.h"
-#include "godpassive.h"
-#include "godprayer.h"
+#include "god-abil.h"
+#include "god-conduct.h"
+#include "god-passive.h"
+#include "god-prayer.h"
 #include "libutil.h"
 #include "macro.h"
 #include "menu.h"
@@ -63,7 +63,7 @@ static int _gold_level()
 
 static int _invocations_level()
 {
-    int invo = you.skill(SK_INVOCATIONS);
+    int invo = you.skills[SK_INVOCATIONS];
     return (invo == 27) ? 7 :
            (invo >= 24) ? 6 :
            (invo >= 20) ? 5 :
@@ -71,6 +71,16 @@ static int _invocations_level()
            (invo >= 12) ? 3 :
            (invo >= 8)  ? 2
                         : 1;
+}
+
+int god_favour_rank(god_type which_god)
+{
+    if (which_god == GOD_GOZAG)
+        return _gold_level();
+    else if (which_god == GOD_USKAYAW)
+        return _invocations_level();
+    else
+        return _piety_level(you.piety);
 }
 
 static string _describe_favour(god_type which_god)
@@ -87,12 +97,9 @@ static string _describe_favour(god_type which_god)
     if (which_god == GOD_XOM)
         return uppercase_first(describe_xom_favour());
 
-    const int rank = which_god == GOD_GOZAG ? _gold_level() :
-                     which_god == GOD_USKAYAW ? _invocations_level() :
-                     _piety_level(you.piety);
 
     const string godname = god_name(which_god);
-    switch (rank)
+    switch (god_favour_rank(which_god))
     {
         case 7:  return "A prized avatar of " + godname;
         case 6:  return "A favoured servant of " + godname + ".";
@@ -110,8 +117,8 @@ static string _describe_favour(god_type which_god)
             else
                 return "A rising star in the eyes of " + godname + ".";
 
-        case 3:  return uppercase_first(godname) + " is most pleased with you.";
-        case 2:  return uppercase_first(godname) + " is pleased with you.";
+        case 3:  return uppercase_first(godname) + " is pleased with you.";
+        case 2:  return uppercase_first(godname) + " is aware of your devotion.";
         default: return uppercase_first(godname) + " is noncommittal.";
     }
 }
@@ -340,32 +347,29 @@ static string _describe_ancestor_upgrades()
                "                        Flail\n"
                "                        Shield\n"
                "                   Splint Mail (+AC)\n"
-               "15 (Option A)    Demon Trident (flame)\n"
-               "15 (Option B)      Broad Axe (flame)\n"
-               "21              Large Shield (reflect)\n"
-               "21                      Haste\n"
-               "27                Speed (weapon ego)\n";
+               "15                 Broad Axe (flame)\n"
+               "19              Large Shield (reflect)\n"
+               "19                      Haste\n"
+               "24                Speed (weapon ego)\n";
     case MONS_ANCESTOR_BATTLEMAGE:
         return "XL                    Battlemage\n"
                "                     Quarterstaff\n"
                "                      Throw Frost\n"
                "                      Stone Arrow\n"
                "                     +Melee Damage\n"
-               "15 (Option A)         Magma Bolt\n"
-               "15 (Option B)         Force Lance\n"
-               "21                  Lajatang (freeze)\n"
-               "21                       Haste\n"
-               "27                   Crystal Spear\n";
+               "15                    Magma Bolt\n"
+               "19                  Lajatang (freeze)\n"
+               "19                       Haste\n"
+               "24                   Crystal Spear\n";
     case MONS_ANCESTOR_HEXER:
         return "XL                       Hexer\n"
                "                     Dagger (drain)\n"
                "                         Slow\n"
                "                        Confuse\n"
                "15                     Paralyse\n"
-               "21 (Option A)    Metabolic Englaciation\n"
-               "21 (Option B)        Mass Confusion\n"
-               "21                       Haste\n"
-               "27                Quickblade (antimagic)\n";
+               "19                   Mass Confusion\n"
+               "19                       Haste\n"
+               "24                Quickblade (antimagic)\n";
     default:
         return "";
     }
@@ -677,7 +681,7 @@ static string _god_penance_message(god_type which_god)
         (which_god_penance >= 50)   ? "%s's wrath is upon you!" :
         (which_god_penance >= 20)   ? "%s is annoyed with you." :
         (which_god_penance >=  5)   ? "%s well remembers your sins." :
-        (which_god_penance >   0)   ? "%s is ready to forgive your sins." :
+        (which_god_penance >   0)   ? "%s is almost ready to forgive your sins." :
         (you.worshipped[which_god]) ? "%s is ambivalent towards you."
                                     : "%s is neutral towards you.";
 
@@ -726,13 +730,15 @@ static void _describe_god_powers(god_type which_god)
         {
             switch (elyvilon_lifesaving())
             {
-                case 1:
+                case lifesaving_chance::sometimes:
                     when = ", especially when called upon";
                     prot_chance += 100 - 3000/piety;
                     break;
-                case 2:
+                case lifesaving_chance::always:
                     when = ", and always does so when called upon";
                     prot_chance = 100;
+                    break;
+                default:
                     break;
             }
         }
@@ -767,6 +773,8 @@ static void _describe_god_powers(god_type which_god)
     case GOD_SHINING_ONE:
     {
         have_any = true;
+        cprintf("%s prevents you from stabbing unaware foes.\n",
+                uppercase_first(god_name(which_god)).c_str());
         if (piety < piety_breakpoint(1))
             textcolour(DARKGREY);
         else
@@ -827,7 +835,12 @@ static void _describe_god_powers(god_type which_god)
             textcolour(god_colour(which_god));
         else
             textcolour(DARKGREY);
-        cprintf("%s supports your attributes (+%d).\n",
+        cprintf("%s %sslows your movement.\n",
+                uppercase_first(god_name(which_god)).c_str(),
+                piety >= piety_breakpoint(5) ? "greatly " :
+                piety >= piety_breakpoint(2) ? "" :
+                                               "slightly ");
+        cprintf("%s supports your attributes. (+%d)\n",
                 uppercase_first(god_name(which_god)).c_str(),
                 chei_stat_boost(piety));
         break;
@@ -872,9 +885,16 @@ static void _describe_god_powers(god_type which_god)
         cprintf("Your enemies may become distracted by gold.\n");
         break;
 
+    case GOD_HEPLIAKLQANA:
+        have_any = true;
+        cprintf("Your life essence is reduced. (-10% HP)\n");
+        break;
+
     case GOD_PAKELLAS:
     {
         have_any = true;
+        cprintf("%s prevents your magic from regenerating.\n",
+                uppercase_first(god_name(which_god)).c_str());
         cprintf("%s identifies device charges for you.\n",
                 uppercase_first(god_name(which_god)).c_str());
         if (!you_foodless_normally())

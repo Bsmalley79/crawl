@@ -11,15 +11,17 @@
 
 #include "butcher.h"
 #include "cloud.h"
+#include "coord.h"
 #include "coordit.h"
+#include "directn.h"
 #include "english.h"
 #include "env.h"
 #include "fprop.h"
-#include "godconduct.h"
+#include "fight.h"
+#include "god-conduct.h"
 #include "items.h"
 #include "losglobal.h"
 #include "message.h"
-#include "misc.h"
 #include "ouch.h"
 #include "prompt.h"
 #include "random-pick.h"
@@ -114,6 +116,58 @@ spret_type conjure_flame(const actor *agent, int pow, const coord_def& where,
     return SPRET_SUCCESS;
 }
 
+spret_type cast_poisonous_vapours(int pow, const dist &beam, bool fail)
+{
+    if (cell_is_solid(beam.target))
+    {
+        canned_msg(MSG_UNTHINKING_ACT);
+        return SPRET_ABORT;
+    }
+
+    monster* mons = monster_at(beam.target);
+    if (!mons || mons->submerged())
+    {
+        fail_check();
+        canned_msg(MSG_SPELL_FIZZLES);
+        return SPRET_SUCCESS; // still losing a turn
+    }
+
+    if (actor_cloud_immune(*mons, CLOUD_POISON) && mons->observable())
+    {
+        mprf("But poisonous clouds would do no harm to %s!",
+             mons->name(DESC_THE).c_str());
+        return SPRET_ABORT;
+    }
+
+    if (stop_attack_prompt(mons, false, you.pos()))
+        return SPRET_ABORT;
+
+    cloud_struct* cloud = cloud_at(beam.target);
+    if (cloud && cloud->type != CLOUD_POISON)
+    {
+        mpr("There's already a cloud there!");
+        return SPRET_ABORT;
+    }
+
+    fail_check();
+
+    const int cloud_duration = max(random2(pow + 1) / 10, 1); // in dekaauts
+    if (cloud)
+    {
+        // Reinforce the cloud.
+        mpr("The poisonous vapours increase!");
+        cloud->decay += cloud_duration * 10; // in this case, we're using auts
+        cloud->set_whose(KC_YOU);
+    }
+    else
+    {
+        place_cloud(CLOUD_POISON, beam.target, cloud_duration, &you);
+        mprf("Poisonous vapours surround %s!", mons->name(DESC_THE).c_str());
+    }
+
+    return SPRET_SUCCESS;
+}
+
 spret_type cast_big_c(int pow, spell_type spl, const actor *caster, bolt &beam,
                       bool fail)
 {
@@ -143,7 +197,7 @@ spret_type cast_big_c(int pow, spell_type spl, const actor *caster, bolt &beam,
         case SPELL_HOLY_BREATH:
             beam.flavour = BEAM_HOLY;
             beam.origin_spell = SPELL_HOLY_BREATH;
-            cty = CLOUD_HOLY_FLAMES;
+            cty = CLOUD_HOLY;
             break;
         case SPELL_FREEZING_CLOUD:
             beam.flavour = BEAM_COLD;
@@ -157,7 +211,7 @@ spret_type cast_big_c(int pow, spell_type spl, const actor *caster, bolt &beam,
 
     beam.thrower           = KILL_YOU;
     beam.hit               = AUTOMATIC_HIT;
-    beam.damage            = dice_def(42, 1); // just a convenient non-zero
+    beam.damage            = CONVENIENT_NONZERO_DAMAGE;
     beam.is_tracer         = true;
     beam.use_target_as_pos = true;
     beam.origin_spell      = spl;
@@ -173,24 +227,22 @@ spret_type cast_big_c(int pow, spell_type spl, const actor *caster, bolt &beam,
 }
 
 static int _make_a_normal_cloud(coord_def where, int pow, int spread_rate,
-                                cloud_type ctype, const actor *agent, int colour,
-                                string name, string tile, int excl_rad)
+                                cloud_type ctype, const actor *agent,
+                                int excl_rad)
 {
     place_cloud(ctype, where,
                 (3 + random2(pow / 4) + random2(pow / 4) + random2(pow / 4)),
-                agent, spread_rate, colour, name, tile, excl_rad);
+                agent, spread_rate, excl_rad);
 
     return 1;
 }
 
 void big_cloud(cloud_type cl_type, const actor *agent,
-               const coord_def& where, int pow, int size, int spread_rate,
-               int colour, string name, string tile)
+               const coord_def& where, int pow, int size, int spread_rate)
 {
     // The starting point _may_ be a place no cloud can be placed on.
     apply_area_cloud(_make_a_normal_cloud, where, pow, size,
-                     cl_type, agent, spread_rate, colour, name, tile,
-                     -1);
+                     cl_type, agent, spread_rate, -1);
 }
 
 spret_type cast_ring_of_flames(int power, bool fail)
@@ -297,7 +349,7 @@ void holy_flames(monster* caster, actor* defender)
             continue;
         }
 
-        place_cloud(CLOUD_HOLY_FLAMES, *ai, dur, caster);
+        place_cloud(CLOUD_HOLY, *ai, dur, caster);
 
         cloud_count++;
     }
@@ -307,19 +359,17 @@ void holy_flames(monster* caster, actor* defender)
         if (defender->is_player())
             mpr("Blessed fire suddenly surrounds you!");
         else
-            simple_monster_message(defender->as_monster(),
+            simple_monster_message(*defender->as_monster(),
                                    " is surrounded by blessed fire!");
     }
 }
 
 random_pick_entry<cloud_type> cloud_cone_clouds[] =
 {
-  { 0,   50,  80, FALL, CLOUD_RAIN },
-  { 0,   50, 100, FALL, CLOUD_MIST },
-  { 0,   50, 150, FALL, CLOUD_MEPHITIC },
-  { 0,  100, 100, PEAK, CLOUD_FIRE },
-  { 0,  100, 100, PEAK, CLOUD_COLD },
-  { 0,  100, 100, PEAK, CLOUD_POISON },
+  { 0,   50, 200, FALL, CLOUD_MEPHITIC },
+  { 0,  100, 125, PEAK, CLOUD_FIRE },
+  { 0,  100, 125, PEAK, CLOUD_COLD },
+  { 0,  100, 125, PEAK, CLOUD_POISON },
   { 30, 100, 125, RISE, CLOUD_NEGATIVE_ENERGY },
   { 40, 100, 135, RISE, CLOUD_STORM },
   { 50, 100, 175, RISE, CLOUD_ACID },
@@ -329,12 +379,19 @@ random_pick_entry<cloud_type> cloud_cone_clouds[] =
 spret_type cast_cloud_cone(const actor *caster, int pow, const coord_def &pos,
                            bool fail)
 {
+    if (env.level_state & LSTATE_STILL_WINDS)
+    {
+        if (caster->is_player())
+            mpr("The air is too still to form clouds.");
+        return SPRET_ABORT;
+    }
+
     // For monsters:
     pow = min(100, pow);
 
     const int range = spell_range(SPELL_CLOUD_CONE, pow);
 
-    targetter_shotgun hitfunc(caster, CLOUD_CONE_BEAM_COUNT, range);
+    targeter_shotgun hitfunc(caster, CLOUD_CONE_BEAM_COUNT, range);
 
     hitfunc.set_aim(pos);
 

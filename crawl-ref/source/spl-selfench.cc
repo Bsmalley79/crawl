@@ -13,8 +13,8 @@
 #include "art-enum.h"
 #include "butcher.h" // butcher_corpse
 #include "coordit.h" // radius_iterator
-#include "godconduct.h"
-#include "godpassive.h"
+#include "god-conduct.h"
+#include "god-passive.h"
 #include "hints.h"
 #include "items.h" // stack_iterator
 #include "libutil.h"
@@ -33,9 +33,6 @@
 int allowed_deaths_door_hp()
 {
     int hp = calc_spell_power(SPELL_DEATHS_DOOR, true) / 10;
-
-    if (have_passive(passive_t::deaths_door_hp_boost))
-        hp += you.piety / 15;
 
     return max(hp, 1);
 }
@@ -70,7 +67,7 @@ spret_type ice_armour(int pow, bool fail)
 
     if (you.duration[DUR_ICY_ARMOUR])
         mpr("Your icy armour thickens.");
-    else if (you.form == TRAN_ICE_BEAST)
+    else if (you.form == transformation::ice_beast)
         mpr("Your icy body feels more resilient.");
     else
         mpr("A film of ice covers your body!");
@@ -138,7 +135,6 @@ int harvest_corpses(const actor &harvester, bool dry_run)
     return harvested;
 }
 
-
 /**
  * Casts the player spell "Cigotuvi's Embrace", pulling all corpses into LOS
  * around the caster to serve as armour.
@@ -177,7 +173,6 @@ spret_type corpse_armour(int pow, bool fail)
 
     return SPRET_SUCCESS;
 }
-
 
 spret_type missile_prot(int pow, bool fail)
 {
@@ -378,7 +373,7 @@ spret_type cast_shroud_of_golubria(int pow, bool fail)
     return SPRET_SUCCESS;
 }
 
-spret_type cast_transform(int pow, transformation_type which_trans, bool fail)
+spret_type cast_transform(int pow, transformation which_trans, bool fail)
 {
     if (!transform(pow, which_trans, false, true)
         || !check_form_stat_safety(which_trans))

@@ -24,8 +24,8 @@
 #include "files.h"
 #include "food.h"
 #include "invent.h"
-#include "itemname.h"
-#include "itemprop.h"
+#include "item-name.h"
+#include "item-prop.h"
 #include "items.h"
 #include "libutil.h"
 #include "macro.h"
@@ -167,7 +167,7 @@ int artefact_value(const item_def &item)
     if (prop[ ARTP_DRAIN ])
         ret -= 8;
 
-    if (prop[ ARTP_CONFUSE ])
+    if (prop[ ARTP_SLOW ])
         ret -= 8;
 
     if (prop[ ARTP_FRAGILE ])
@@ -202,102 +202,7 @@ unsigned int item_value(item_def item, bool ident)
     switch (item.base_type)
     {
     case OBJ_WEAPONS:
-        switch (item.sub_type)
-        {
-
-        case WPN_CLUB:
-            valued += 10;
-            break;
-
-        case WPN_HUNTING_SLING:
-        case WPN_STAFF:
-            valued += 15;
-            break;
-
-        case WPN_GIANT_CLUB:
-            valued += 17;
-            break;
-
-        case WPN_GIANT_SPIKED_CLUB:
-            valued += 19;
-            break;
-
-        case WPN_DAGGER:
-            valued += 20;
-            break;
-
-        case WPN_BLOWGUN:
-        case WPN_WHIP:
-            valued += 25;
-            break;
-
-        case WPN_SHORTBOW:
-        case WPN_HAND_AXE:
-        case WPN_FALCHION:
-        case WPN_MACE:
-        case WPN_SCYTHE:
-        case WPN_SHORT_SWORD:
-        case WPN_SPEAR:
-            valued += 30;
-            break;
-
-        case WPN_WAR_AXE:
-        case WPN_FLAIL:
-        case WPN_LONG_SWORD:
-        case WPN_TRIDENT:
-        case WPN_HAND_CROSSBOW:
-            valued += 35;
-            break;
-
-        case WPN_BROAD_AXE:
-        case WPN_RAPIER:
-        case WPN_DIRE_FLAIL:
-        case WPN_HALBERD:
-        case WPN_MORNINGSTAR:
-        case WPN_QUARTERSTAFF:
-        case WPN_SCIMITAR:
-            valued += 40;
-            break;
-
-        case WPN_LONGBOW:
-        case WPN_ARBALEST:
-            valued += 45;
-            break;
-
-        case WPN_BATTLEAXE:
-        case WPN_GLAIVE:
-        case WPN_GREAT_MACE:
-        case WPN_GREAT_SWORD:
-            valued += 65;
-            break;
-
-        case WPN_BARDICHE:
-            valued += 90;
-            break;
-
-        case WPN_TRIPLE_CROSSBOW:
-        case WPN_TRIPLE_SWORD:
-        case WPN_EXECUTIONERS_AXE:
-            valued += 100;
-            break;
-
-        case WPN_DOUBLE_SWORD:
-        case WPN_DEMON_WHIP:
-        case WPN_DEMON_TRIDENT:
-        case WPN_DEMON_BLADE:
-        case WPN_EVENINGSTAR:
-        case WPN_LAJATANG:
-        case WPN_QUICK_BLADE:
-        case WPN_GREATSLING:
-            valued += 150;
-            break;
-
-        case WPN_EUDEMON_BLADE:
-        case WPN_SACRED_SCOURGE:
-        case WPN_TRISHULA:
-            valued += 200;
-            break;
-        }
+        valued += weapon_base_price((weapon_type)item.sub_type);
 
         if (item_type_known(item))
         {
@@ -352,9 +257,14 @@ unsigned int item_value(item_def item, bool ident)
                 valued += 50;
         }
         else if (item_type_known(item)
-                 && get_equip_desc(item) != 0)
+                 && get_equip_desc(item) != 0) // ???
         {
             valued += 20;
+        }
+        else if (!(item.flags & ISFLAG_IDENT_MASK)
+                 && (get_equip_desc(item) != 0))
+        {
+            valued += 60; // un-id'd "glowing" - arbitrary added cost
         }
 
         if (item_known_cursed(item))
@@ -363,30 +273,7 @@ unsigned int item_value(item_def item, bool ident)
         break;
 
     case OBJ_MISSILES:          // ammunition
-        switch (item.sub_type)
-        {
-        case MI_STONE:
-        case MI_NONE:
-            valued++;
-            break;
-        case MI_NEEDLE:
-        case MI_ARROW:
-        case MI_BOLT:
-            valued += 2;
-            break;
-        case MI_LARGE_ROCK:
-            valued += 7;
-            break;
-        case MI_JAVELIN:
-            valued += 8;
-            break;
-        case MI_THROWING_NET:
-            valued += 30;
-            break;
-        default:
-            valued += 5;
-            break;
-        }
+        valued += missile_base_price((missile_type)item.sub_type);
 
         if (item_type_known(item))
         {
@@ -410,8 +297,10 @@ unsigned int item_value(item_def item, bool ident)
                 valued *= 30;
                 break;
 
+#if TAG_MAJOR_VERSION == 34
             case SPMSL_FLAME:
             case SPMSL_FROST:
+#endif
             case SPMSL_SLEEP:
             case SPMSL_CONFUSION:
                 valued *= 25;
@@ -431,108 +320,10 @@ unsigned int item_value(item_def item, bool ident)
 
             valued /= 10;
         }
-
-        if (item_ident(item, ISFLAG_KNOW_PLUSES))
-        {
-            if (item.plus >= 0)
-                valued += (item.plus * 2);
-
-            if (item.plus < 0)
-                valued += item.plus * item.plus * item.plus;
-        }
         break;
 
     case OBJ_ARMOUR:
-        switch (item.sub_type)
-        {
-        case ARM_PEARL_DRAGON_ARMOUR:
-            valued += 1000;
-            break;
-
-        case ARM_PEARL_DRAGON_HIDE:
-            valued += 900;
-            break;
-
-        case ARM_CRYSTAL_PLATE_ARMOUR:
-        case ARM_GOLD_DRAGON_ARMOUR:
-        case ARM_STORM_DRAGON_ARMOUR:
-        case ARM_SHADOW_DRAGON_ARMOUR:
-            valued += 800;
-            break;
-
-        case ARM_GOLD_DRAGON_HIDE:
-        case ARM_STORM_DRAGON_HIDE:
-        case ARM_SHADOW_DRAGON_HIDE:
-            valued += 700;
-            break;
-
-        case ARM_FIRE_DRAGON_ARMOUR:
-        case ARM_ICE_DRAGON_ARMOUR:
-        case ARM_QUICKSILVER_DRAGON_ARMOUR:
-            valued += 600;
-            break;
-
-        case ARM_FIRE_DRAGON_HIDE:
-        case ARM_ICE_DRAGON_HIDE:
-        case ARM_QUICKSILVER_DRAGON_HIDE:
-        case ARM_SWAMP_DRAGON_ARMOUR:
-            valued += 500;
-            break;
-
-        case ARM_MOTTLED_DRAGON_ARMOUR:
-        case ARM_STEAM_DRAGON_ARMOUR:
-        case ARM_SWAMP_DRAGON_HIDE:
-            valued += 400;
-            break;
-
-        case ARM_MOTTLED_DRAGON_HIDE:
-        case ARM_STEAM_DRAGON_HIDE:
-            valued += 300;
-            break;
-
-        case ARM_CENTAUR_BARDING:
-        case ARM_NAGA_BARDING:
-        case ARM_PLATE_ARMOUR:
-            valued += 230;
-            break;
-
-        case ARM_TROLL_LEATHER_ARMOUR:
-            valued += 150;
-            break;
-
-        case ARM_CHAIN_MAIL:
-        case ARM_HELMET:
-#if TAG_MAJOR_VERSION == 34
-        case ARM_CAP:
-#endif
-        case ARM_BOOTS:
-        case ARM_GLOVES:
-        case ARM_CLOAK:
-        case ARM_LARGE_SHIELD:
-        case ARM_SHIELD:
-        case ARM_BUCKLER:
-            valued += 45;
-            break;
-
-        case ARM_SCALE_MAIL:
-        case ARM_TROLL_HIDE:
-        case ARM_RING_MAIL:
-        case ARM_HAT:
-            valued += 40;
-            break;
-
-        case ARM_LEATHER_ARMOUR:
-            valued += 20;
-            break;
-
-        case ARM_ROBE:
-            valued += 7;
-            break;
-
-        case ARM_ANIMAL_SKIN:
-            valued += 3;
-            break;
-        }
+        valued += armour_base_price((armour_type)item.sub_type);
 
         if (item_type_known(item))
         {
@@ -584,7 +375,12 @@ unsigned int item_value(item_def item, bool ident)
                 valued += 50;
         }
         else if (item_type_known(item) && get_equip_desc(item) != 0)
-            valued += 20;
+            valued += 20;  // ???
+        else if (!(item.flags & ISFLAG_IDENT_MASK)
+                 && (get_equip_desc(item) != 0))
+        {
+            valued += 60; // un-id'd "glowing" - arbitrary added cost
+        }
 
         if (item_known_cursed(item))
             valued -= 30;
@@ -602,13 +398,8 @@ unsigned int item_value(item_def item, bool ident)
             bool good = false;
             switch (item.sub_type)
             {
-            case WAND_HASTING:
-            case WAND_HEAL_WOUNDS:
-                valued += 240;
-                good = true;
-                break;
-
-            case WAND_TELEPORTATION:
+            case WAND_CLOUDS:
+            case WAND_SCATTERSHOT:
                 valued += 120;
                 good = true;
                 break;
@@ -633,7 +424,6 @@ unsigned int item_value(item_def item, bool ident)
                 break;
 
             case WAND_CONFUSION:
-            case WAND_SLOWING:
                 valued += 15;
                 break;
 
@@ -883,7 +673,6 @@ unsigned int item_value(item_def item, bool ident)
                 case AMU_REGENERATION:
                 case AMU_GUARDIAN_SPIRIT:
                 case AMU_THE_GOURMAND:
-                case AMU_DISMISSAL:
                 case AMU_HARM:
                 case AMU_MANA_REGENERATION:
                     valued += 300;
@@ -905,7 +694,6 @@ unsigned int item_value(item_def item, bool ident)
                     valued += 200;
                     break;
 
-                case RING_SUSTAIN_ATTRIBUTES:
                 case RING_STEALTH:
                 case RING_FLIGHT:
                     valued += 175;
@@ -954,6 +742,7 @@ unsigned int item_value(item_def item, bool ident)
         case MISC_FAN_OF_GALES:
         case MISC_PHIAL_OF_FLOODS:
         case MISC_LAMP_OF_FIRE:
+        case MISC_LIGHTNING_ROD:
             valued += 400;
             break;
 
@@ -962,7 +751,6 @@ unsigned int item_value(item_def item, bool ident)
             break;
 
         case MISC_BOX_OF_BEASTS:
-        case MISC_DISC_OF_STORMS:
         case MISC_SACK_OF_SPIDERS:
             valued += 200;
             break;
@@ -1016,17 +804,6 @@ unsigned int item_value(item_def item, bool ident)
 
     case OBJ_STAVES:
         valued = item_type_known(item) ? 250 : 120;
-        break;
-
-    case OBJ_RODS:
-        if (!item_type_known(item))
-            valued = 120;
-        else
-            valued = 250;
-
-        // Both max charges and enchantment.
-        if (item_ident(item, ISFLAG_KNOW_PLUSES))
-            valued += 50 * (item.charge_cap / ROD_CHARGE_MULT + item.rod_plus);
         break;
 
     case OBJ_ORBS:
@@ -1343,11 +1120,32 @@ int ShopMenu::selected_cost() const
 
 void ShopMenu::update_help()
 {
-    set_more(formatted_string::parse_string(make_stringf(
+    string top_line = make_stringf("<yellow>You have %d gold piece%s.",
+                                   you.gold,
+                                   you.gold != 1 ? "s" : "");
+    const int total_cost = selected_cost();
+    if (total_cost > you.gold)
+    {
+        top_line += "<lightred>";
+        top_line +=
+            make_stringf(" You are short %d gold piece%s for the purchase.",
+                         total_cost - you.gold,
+                         (total_cost - you.gold != 1) ? "s" : "");
+        top_line += "</lightred>";
+    }
+    else if (total_cost)
+    {
+        top_line +=
+            make_stringf(" After the purchase, you will have %d gold piece%s.",
+                         you.gold - total_cost,
+                         (you.gold - total_cost != 1) ? "s" : "");
+    }
+    top_line += "</yellow>\n";
+
+    set_more(formatted_string::parse_string(top_line + make_stringf(
         //You have 0 gold pieces.
         //[Esc/R-Click] exit  [!] buy|examine items  [a-i] select item for purchase
         //[/] sort (default)  [Enter] make purchase  [A-I] put item on shopping list
-        "<yellow>You have %d gold piece%s.</yellow>\n"
 #if defined(USE_TILE) && !defined(TOUCH_UI)
         "[<w>Esc</w>/<w>R-Click</w>] exit  "
 #else
@@ -1356,8 +1154,6 @@ void ShopMenu::update_help()
 #endif
         "%s  [%s] %s\n"
         "[<w>/</w>] sort (%s)%s  %s  [%s] put item on shopping list",
-        you.gold,
-        you.gold == 1 ? "" : "s",
         !can_purchase ? " " " "  "  " "       "  "          " :
         looking       ? "[<w>!</w>] buy|<w>examine</w> items" :
                         "[<w>!</w>] <w>buy</w>|examine items",
@@ -1619,7 +1415,15 @@ bool ShopMenu::process_key(int keyin)
         return true;
     }
 
-    return InvMenu::process_key(keyin);
+    auto old_selected = selected_entries();
+    bool ret = InvMenu::process_key(keyin);
+    if (old_selected != selected_entries())
+    {
+        // Update the footer to display the new $$$ info.
+        update_help();
+        draw_menu();
+    }
+    return ret;
 }
 
 void shop()
@@ -2038,7 +1842,6 @@ bool ShoppingList::cull_identical_items(const item_def& item, int cost)
         switch (item.sub_type)
         {
             case MISC_CRYSTAL_BALL_OF_ENERGY:
-            case MISC_DISC_OF_STORMS:
                 break;
             default:
                 if (!is_xp_evoker(item))
@@ -2132,7 +1935,7 @@ bool ShoppingList::cull_identical_items(const item_def& item, int cost)
             thing[REPLACE_PROMPTED_KEY] = (bool) true;
 
             string prompt =
-                make_stringf("Shopping-list: replace %dgp %s with cheaper "
+                make_stringf("Shopping list: replace %dgp %s with cheaper "
                              "one? (Y/n)", list_cost,
                              describe_thing(thing).c_str());
 
@@ -2152,13 +1955,13 @@ bool ShoppingList::cull_identical_items(const item_def& item, int cost)
                 continue;
             thing[REMOVE_PROMPTED_KEY] = (bool) true;
 
-            string prompt = make_stringf("Shopping-list: remove %s? (Y/n)",
+            string prompt = make_stringf("Shopping list: remove %s? (Y/n)",
                                          describe_thing(thing, DESC_A).c_str());
 
             if (yesno(prompt.c_str(), true, 'y', false))
             {
                 to_del.push_back(listed);
-                mprf("Shopping-list: removing %s",
+                mprf("Shopping list: removing %s",
                      describe_thing(thing, DESC_A).c_str());
             }
             else
@@ -2166,7 +1969,7 @@ bool ShoppingList::cull_identical_items(const item_def& item, int cost)
         }
         else
         {
-            mprf("Shopping-list: removing %s",
+            mprf("Shopping list: removing %s",
                  describe_thing(thing, DESC_A).c_str());
             to_del.push_back(listed);
         }
@@ -2249,6 +2052,21 @@ void ShoppingList::remove_dead_shops()
 
     // Prices could have changed.
     refresh();
+}
+
+vector<shoplist_entry> ShoppingList::entries()
+{
+    ASSERT(list);
+
+    vector<shoplist_entry> list_entries;
+    for (const CrawlHashTable &entry : *list)
+    {
+        list_entries.push_back(
+            make_pair(name_thing(entry), thing_cost(entry))
+        );
+    }
+
+    return list_entries;
 }
 
 int ShoppingList::size() const

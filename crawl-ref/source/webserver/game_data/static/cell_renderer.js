@@ -683,6 +683,8 @@ function ($, view_data, main, tileinfo_player, icons, dngn, enums,
                         this.draw_dngn(dngn.QUAD_GLOW, x, y);
                     if (cell.disjunct)
                         this.draw_dngn(dngn.DISJUNCT + cell.disjunct - 1, x, y);
+                    if (cell.awakened_forest)
+                        this.draw_icon(icons.BERSERK, x, y);
 
                     if (cell.fg)
                     {
@@ -889,6 +891,11 @@ function ($, view_data, main, tileinfo_player, icons, dngn, enums,
             if (fg.BOUND_SOUL)
             {
                 this.draw_icon(icons.BOUND_SOUL, x, y, -status_shift, 0);
+                status_shift += 6;
+            }
+            if (fg.INFESTED)
+            {
+                this.draw_icon(icons.INFESTED, x, y, -status_shift, 0);
                 status_shift += 6;
             }
             if (fg.RECALL)
