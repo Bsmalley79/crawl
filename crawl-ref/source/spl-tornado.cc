@@ -162,12 +162,8 @@ static bool _mons_is_unmovable(const monster *mons)
     if (mons->is_stationary())
         return true;
     // we'd have to rotate everything
-    if (mons_is_tentacle_or_tentacle_segment(mons->type)
-        || mons_is_tentacle_head(mons_base_type(*mons)))
-    {
-        return true;
-    }
-    return false;
+    return (mons_is_tentacle_or_tentacle_segment(mons->type)
+        || mons_is_tentacle_head(mons_base_type(*mons)));
 }
 
 static double _get_ang(int x, int y)
